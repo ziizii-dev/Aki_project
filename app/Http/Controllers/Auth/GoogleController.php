@@ -19,21 +19,30 @@ class GoogleController extends Controller
 
     public function callback()
     {
-       // return "hello world";
-        $googleUser = Socialite::driver('google')->stateless()->user(); 
-    
-        $user = Admin::updateOrCreate([
-            'email' => $googleUser->getEmail(),
-        ], [
-            'name' => $googleUser->getName(),
-            'google_id' => $googleUser->getId(),
-            'password' => bcrypt(uniqid()), 
-        ]);
+        try {
+            $googleUser = Socialite::driver('google')->stateless()->user();
 
-        Admin::login($user);
+           
+            $user = Admin::where('google_id', $googleUser->getId())->orWhere('email', $googleUser->getEmail())->first();
+             //dd($user);
+            if (!$user) {
+               
+                $user = Admin::create([
+                    'name' => $googleUser->getName(),
+                    'email' => $googleUser->getEmail(),
+                    'google_id' => $googleUser->getId(),
+                    'password' => bcrypt('default_password'),
+                ]);
+            }
 
-    
-        return redirect()->intended(route('dashboard.index'));
+            // Log in the user
+            Auth::login($user);
+
+            return redirect()->route('dashboard.index');
+
+        } catch (\Exception $e) {
+            return redirect()->route('login')->with('error', 'Authentication failed. Please try again.');
+        }
     }
     
 }
